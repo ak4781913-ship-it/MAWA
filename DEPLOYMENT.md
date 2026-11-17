@@ -32,19 +32,29 @@ In **Firebase Console → Authentication → Settings → Authorized domains**, 
 
 ## 2. Frontend Deployment: GitHub + Hostinger Static Hosting (`dist/`)
 
-> **Important:** Hostinger shared/static hosting serves the compiled Vite `dist/` bundle over Apache/LiteSpeed and **does not** run the persistent Express (`server.ts`) AI server. See Section 3 below to host the Express AI backend separately if needed.
+> **Important:** Hostinger's GitHub auto-detector checks `package.json` for `express` and may default to **Application Type: Express** (`Output Directory: none`, `Entry File: server.js`), which fails with `ERROR: Entry file not found` because this repository builds a static Vite SPA in `dist/` and keeps the Express Gemini AI server in `server.ts` separately. Do **not** create a fake `server.js` or rename `server.ts`.
 
+### Exact Hostinger Web Apps / GitHub Settings
+Select these settings manually in Hostinger hPanel before deploying:
+- **Application Type / Framework Preset:** `Vite` (or `Static Website` / `React` — **never** leave `Express` selected)
+- **Node.js Version:** `22` (LTS `>=22.12.0` — compatible with pinned `firebase@12.19.0`; `24` also supported)
+- **Root Directory:** `/`
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
+- **Entry File:** *(leave blank / none)*
+
+### Build & Publishing Notes
 1. **Connect GitHub Repository:**
    - Push to `main`. GitHub Actions (`.github/workflows/ci.yml`) automatically runs `npm ci`, `npm run lint`, `npm run lint:rules`, `npm run build`, and verifies `dist/` artifacts and secret hygiene.
-2. **Build with your Real Domain (optional AI proxy URL if configured):**
+2. **Domain Sitemap & Optional Backend URL:**
    ```bash
    SITE_URL=https://yourdomain.com VITE_AI_API_URL=https://api.yourdomain.com npm run build
    ```
-   - `scripts/generate-sitemap.mjs` generates `dist/sitemap.xml` (all public static routes + live public `/products/:slug` & `/categories/:slug` entries, excluding `/admin/`) and `dist/robots.txt`.
+   - `scripts/generate-sitemap.mjs` generates `dist/sitemap.xml` (all public static routes + live public `/products/:slug` & `/categories/:slug` entries, excluding `/admin/`) and `dist/robots.txt`. If `SITE_URL` is omitted during development, it safely keeps the `https://REPLACE-WITH-YOUR-DOMAIN` placeholder unless `APP_URL` is set.
    - `public/.htaccess` is copied directly into `dist/.htaccess` for Apache React Router SPA fallback (`RewriteRule ^ index.html [L]`), security headers, gzip compression, and immutable asset caching (with `no-cache` on `index.html`).
-3. **Upload to Hostinger:**
-   - Upload the **entire contents of `dist/`** (make sure dotfiles like `.htaccess` are included!) into your domain's `public_html/` folder via Hostinger File Manager, SFTP, or Hostinger Git deployment (`npm ci && SITE_URL=https://yourdomain.com npm run build` publishing `dist/`).
-   - Verify direct reloads on `/products`, `/roadmap`, `/downloads`, and `/admin/login` return the SPA cleanly without 404 errors, while `/assets/*` and `/mawa-logo.png` load directly.
+3. **If Using Hostinger Shared Web Hosting (Manual / SFTP `public_html` Upload):**
+   - Upload the **entire contents of `dist/`** (including dotfiles like `.htaccess`) into `public_html/`.
+   - Verify direct reloads on `/products`, `/roadmap`, `/downloads`, and `/admin/login` return the SPA cleanly without 404 errors.
 
 ---
 
